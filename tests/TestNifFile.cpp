@@ -3,7 +3,7 @@
 #include "TestNifFile.hpp"
 #include "TestUtil.hpp"
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 
 #include <NifFile.hpp>
 
