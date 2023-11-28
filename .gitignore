@@ -10,7 +10,10 @@ cmake-build-debug
 build/
 
 # Test output
-tests/*output.*
+tests/output/
+
+# Optional test input
+tests/scaninput
 
 # User-specific files
 *.rsuser
