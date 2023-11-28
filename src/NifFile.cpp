@@ -195,7 +195,7 @@ int NifFile::Load(std::istream& file, const NifLoadOptions& options) {
 		}
 
 		NiVersion& version = hdr.GetVersion();
-		if (!(version.IsOB() || version.IsFO3() || version.IsSK() || version.IsSSE() || version.IsFO4() || version.IsFO76() || version.IsSpecial())) {
+		if (!(version.IsOB() || version.IsFO3() || version.IsSK() || version.IsSSE() || version.IsFO4() || version.IsFO76() || version.IsSF() || version.IsSpecial())) {
 			// Unsupported file version
 			Clear();
 			return 2;
@@ -3064,6 +3064,10 @@ const std::vector<Vector2>* NifFile::GetUvsForShape(NiShape* shape) {
 
 const std::vector<Color4>* NifFile::GetColorsForShape(const std::string& shapeName) {
 	auto shape = FindBlockByName<NiShape>(shapeName);
+	return GetColorsForShape(shape);
+}
+
+const std::vector<Color4>* NifFile::GetColorsForShape(NiShape* shape) {
 	if (!shape)
 		return nullptr;
 
@@ -4351,7 +4355,7 @@ void NifFile::UpdateSkinPartitions(NiShape* shape) {
 		part.bones.reserve(part.numBones);
 
 		for (auto& b : partBones[partInd]) {
-			part.bones.push_back(b);
+			part.bones.push_back(static_cast<uint16_t>(b));
 			boneLookup[b] = static_cast<uint8_t>(part.bones.size() - 1);
 		}
 
