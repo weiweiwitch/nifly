@@ -1,4 +1,4 @@
-find_package(Catch2 REQUIRED)
+find_package(Catch2 CONFIG REQUIRED)
 
 set(SOURCES
     TestNifFile
@@ -6,7 +6,9 @@ set(SOURCES
 
 foreach(name ${SOURCES})
     add_executable(${name} ${NIFLY_TESTS_DIR}/${name}.cpp)
-    target_link_libraries(${name} PRIVATE nifly Catch2::Catch2)
+
+    target_link_libraries(${name} PRIVATE nifly Catch2::Catch2WithMain)
+
     set_target_properties(${name} PROPERTIES CXX_EXTENSIONS OFF)
 
     # Add warnings. -Werror disabled for now
@@ -19,5 +21,10 @@ foreach(name ${SOURCES})
         )
 
     include(Catch)
+
     catch_discover_tests(${name} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 endforeach()
+
+foreach (CompilerFlag ${CompilerFlags})
+    message(Flag-test: "${${CompilerFlag}}")
+endforeach ()
