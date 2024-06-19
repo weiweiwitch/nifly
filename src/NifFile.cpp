@@ -5,8 +5,8 @@ See the included GPLv3 LICENSE file
 */
 
 #include "NifFile.hpp"
-#include "bhk.hpp"
 #include "NifUtil.hpp"
+#include "bhk.hpp"
 
 #include <fstream>
 #include <regex>
@@ -195,7 +195,8 @@ int NifFile::Load(std::istream& file, const NifLoadOptions& options) {
 		}
 
 		NiVersion& version = hdr.GetVersion();
-		if (!(version.IsOB() || version.IsFO3() || version.IsSK() || version.IsSSE() || version.IsFO4() || version.IsFO76() || version.IsSF() || version.IsSpecial())) {
+		if (!(version.IsOB() || version.IsFO3() || version.IsSK() || version.IsSSE() || version.IsFO4()
+			  || version.IsFO76() || version.IsSF() || version.IsSpecial())) {
 			// Unsupported file version
 			Clear();
 			return 2;
@@ -676,8 +677,7 @@ void NifFile::FixBSXFlags() {
 				}
 			}
 
-			if (flagUnnecessary)
-			{
+			if (flagUnnecessary) {
 				// Unset unnecessary external emittance flag on BSXFlags
 				bsx->integerData &= (~BSX_EXTERNAL_EMITTANCE);
 			}
@@ -696,8 +696,7 @@ void NifFile::FixBSXFlags() {
 				}
 			}
 
-			if (flagMissing)
-			{
+			if (flagMissing) {
 				// Set missing external emittance flag on BSXFlags
 				bsx->integerData |= BSX_EXTERNAL_EMITTANCE;
 			}
@@ -709,11 +708,13 @@ void NifFile::FixShaderFlags() {
 	for (auto& block : blocks) {
 		auto bslsp = dynamic_cast<BSLightingShaderProperty*>(block.get());
 		if (bslsp) {
-			if (bslsp->bslspShaderType != BSLSP_ENVMAP && (bslsp->shaderFlags1 & SLSF1_ENVIRONMENT_MAPPING)) { // Same flag in SK and FO4
+			if (bslsp->bslspShaderType != BSLSP_ENVMAP
+				&& (bslsp->shaderFlags1 & SLSF1_ENVIRONMENT_MAPPING)) { // Same flag in SK and FO4
 				// Shader is no environment shader, remove unused shader flag
 				bslsp->shaderFlags1 &= (~SLSF1_ENVIRONMENT_MAPPING);
 			}
-			else if (bslsp->bslspShaderType == BSLSP_ENVMAP && !(bslsp->shaderFlags1 & SLSF1_ENVIRONMENT_MAPPING)) { // Same flag in SK and FO4
+			else if (bslsp->bslspShaderType == BSLSP_ENVMAP
+					 && !(bslsp->shaderFlags1 & SLSF1_ENVIRONMENT_MAPPING)) { // Same flag in SK and FO4
 				// Shader is environment shader, add missing shader flag
 				bslsp->shaderFlags1 |= SLSF1_ENVIRONMENT_MAPPING;
 			}
