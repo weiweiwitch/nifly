@@ -115,12 +115,14 @@ void NifFile::CopyFrom(const NifFile& other) {
 
 void NifFile::LinkGeomData() {
 	for (auto& block : blocks) {
-		auto geom = dynamic_cast<NiGeometry*>(block.get());
-		if (geom) {
+		if (auto geom = dynamic_cast<NiGeometry*>(block.get())) {
+			// NiGeometry refers to geometry data within the nif file
 			auto geomData = hdr.GetBlock(geom->DataRef());
 			if (geomData)
 				geom->SetGeomData(geomData);
+			
 		}
+		// NOTE: BSGeometry is it's own geometry data... need explicit linking here?
 	}
 }
 
@@ -867,6 +869,55 @@ NiTexturingProperty* NifFile::GetTexturingProperty(NiShape* shape) const {
 
 	return nullptr;
 }
+
+
+NiGeometryData* NifFile::GetGeometryData(NiShape* shape) const {
+	if (shape->HasType<NiTriBasedGeom>()) {
+		return hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	}
+	else if (shape->HasType<BSGeometry>()) {
+		return static_cast<BSGeometry*>(shape)->GetGeomData();
+	}
+	return nullptr;
+}
+
+std::vector<std::reference_wrapper<std::string>> NifFile::GetExternalGeometryPathRefs(NiShape* shape) const {
+	std::vector<std::reference_wrapper<std::string>> meshPaths;
+	auto bsgeo = dynamic_cast<BSGeometry*>(shape);
+	if (bsgeo) {
+		for (uint8_t i = 0; i < bsgeo->MeshCount(); i++) {
+			auto mesh = bsgeo->SelectMesh(i);
+			meshPaths.push_back(mesh->meshName.get());
+			bsgeo->ReleaseMesh();
+		}
+	}
+	return meshPaths;
+}
+
+bool NifFile::LoadExternalShapeData(NiShape* shape, std::istream& infile, uint8_t shapeIndex) {
+	auto bsgeo = dynamic_cast<BSGeometry*>(shape);
+	if (bsgeo && (shapeIndex < bsgeo->MeshCount())) {
+		NiIStream meshStream(&infile, nullptr);
+		NiStreamReversible s(&meshStream, nullptr, NiStreamReversible::Mode::Reading);
+		auto mesh = bsgeo->SelectMesh(shapeIndex);
+		mesh->meshData.Sync(s);
+		bsgeo->ReleaseMesh();
+	}
+	return true;
+}
+
+bool NifFile::SaveExternalShapeData(NiShape* shape, std::ostream& outfile, uint8_t shapeIndex) {
+	auto bsgeo = dynamic_cast<BSGeometry*>(shape);
+	if (bsgeo && (shapeIndex < bsgeo->MeshCount())) {
+		NiOStream meshStream(&outfile, nullptr);
+		NiStreamReversible s(nullptr, &meshStream,NiStreamReversible::Mode::Reading);
+		auto mesh = bsgeo->SelectMesh(shapeIndex);
+		mesh->Sync(s);
+		bsgeo->ReleaseMesh();
+	}
+	return true;
+}
+
 
 std::vector<std::reference_wrapper<std::string>> NifFile::GetTexturePathRefs(NiShape* shape) const {
 	std::vector<std::reference_wrapper<std::string>> texturePaths;
@@ -3013,8 +3064,7 @@ const std::vector<Vector3>* NifFile::GetVertsForShape(NiShape* shape) {
 	if (!shape)
 		return nullptr;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData)
 			return &geomData->vertices;
 	}
@@ -3023,7 +3073,6 @@ const std::vector<Vector3>* NifFile::GetVertsForShape(NiShape* shape) {
 		if (bsTriShape)
 			return &bsTriShape->UpdateRawVertices();
 	}
-
 	return nullptr;
 }
 
@@ -3031,8 +3080,7 @@ const std::vector<Vector3>* NifFile::GetNormalsForShape(NiShape* shape) {
 	if (!shape || !shape->HasNormals())
 		return nullptr;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData)
 			return &geomData->normals;
 	}
@@ -3049,8 +3097,7 @@ const std::vector<Vector2>* NifFile::GetUvsForShape(NiShape* shape) {
 	if (!shape)
 		return nullptr;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && !geomData->uvSets.empty())
 			return &geomData->uvSets[0];
 	}
@@ -3072,8 +3119,7 @@ const std::vector<Color4>* NifFile::GetColorsForShape(NiShape* shape) {
 	if (!shape)
 		return nullptr;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData)
 			return &geomData->vertexColors;
 	}
@@ -3090,8 +3136,7 @@ const std::vector<Vector3>* NifFile::GetTangentsForShape(NiShape* shape) {
 	if (!shape || !shape->HasTangents())
 		return nullptr;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData)
 			return &geomData->tangents;
 	}
@@ -3108,8 +3153,7 @@ const std::vector<Vector3>* NifFile::GetBitangentsForShape(NiShape* shape) {
 	if (!shape || !shape->HasTangents())
 		return nullptr;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData)
 			return &geomData->bitangents;
 	}
@@ -3139,8 +3183,7 @@ bool NifFile::GetVertsForShape(NiShape* shape, std::vector<Vector3>& outVerts) c
 		return false;
 	}
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && geomData->HasVertices()) {
 			outVerts = geomData->vertices;
 			return true;
@@ -3163,8 +3206,7 @@ bool NifFile::GetVertsForShape(NiShape* shape, std::vector<Vector3>& outVerts) c
 }
 
 bool NifFile::GetUvsForShape(NiShape* shape, std::vector<Vector2>& outUvs) const {
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && geomData->HasUVs() && !geomData->uvSets.empty()) {
 			outUvs = geomData->uvSets[0];
 			return true;
@@ -3186,8 +3228,7 @@ bool NifFile::GetUvsForShape(NiShape* shape, std::vector<Vector2>& outUvs) const
 }
 
 bool NifFile::GetColorsForShape(NiShape* shape, std::vector<Color4>& outColors) const {
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && geomData->HasVertexColors()) {
 			outColors = geomData->vertexColors;
 			return true;
@@ -3213,8 +3254,7 @@ bool NifFile::GetColorsForShape(NiShape* shape, std::vector<Color4>& outColors) 
 }
 
 bool NifFile::GetTangentsForShape(NiShape* shape, std::vector<Vector3>& outTang) const {
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && geomData->HasTangents()) {
 			outTang = geomData->tangents;
 			return true;
@@ -3242,8 +3282,7 @@ bool NifFile::GetTangentsForShape(NiShape* shape, std::vector<Vector3>& outTang)
 }
 
 bool NifFile::GetBitangentsForShape(NiShape* shape, std::vector<Vector3>& outBitang) const {
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && geomData->HasTangents()) {
 			outBitang = geomData->bitangents;
 			return true;
@@ -3287,8 +3326,7 @@ void NifFile::SetVertsForShape(NiShape* shape, const std::vector<Vector3>& verts
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData) {
 			if (verts.size() != geomData->GetNumVertices())
 				geomData->Create(hdr.GetVersion(), &verts, nullptr, nullptr, nullptr);
@@ -3314,8 +3352,7 @@ void NifFile::SetUvsForShape(NiShape* shape, const std::vector<Vector2>& uvs) {
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && uvs.size() == geomData->GetNumVertices()) {
 			geomData->SetUVs(true);
 			geomData->uvSets[0] = uvs;
@@ -3336,8 +3373,7 @@ void NifFile::SetColorsForShape(NiShape* shape, const std::vector<Color4>& color
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && colors.size() == geomData->GetNumVertices()) {
 			geomData->SetVertexColors(true);
 			geomData->vertexColors = colors;
@@ -3379,8 +3415,7 @@ void NifFile::SetTangentsForShape(NiShape* shape, const std::vector<Vector3>& ta
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData) {
 			geomData->SetTangents(true);
 			geomData->tangents = tangents;
@@ -3397,8 +3432,7 @@ void NifFile::SetBitangentsForShape(NiShape* shape, const std::vector<Vector3>& 
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData) {
 			geomData->SetTangents(true);
 			geomData->bitangents = bitangents;
@@ -3528,8 +3562,7 @@ void NifFile::InvertUVsForShape(NiShape* shape, bool invertX, bool invertY) {
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && !geomData->uvSets.empty()) {
 			if (invertX)
 				for (auto& i : geomData->uvSets[0])
@@ -3576,8 +3609,7 @@ void NifFile::MirrorShape(NiShape* shape, bool mirrorX, bool mirrorY, bool mirro
 		flipTris = !flipTris;
 	}
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && !geomData->vertices.empty()) {
 			for (auto& vertice : geomData->vertices)
 				vertice = mirrorMat * vertice;
@@ -3627,8 +3659,7 @@ void NifFile::SetNormalsForShape(NiShape* shape, const std::vector<Vector3>& nor
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData) {
 			geomData->SetNormals(true);
 			geomData->normals = norms;
@@ -3663,8 +3694,7 @@ void NifFile::CalcNormalsForShape(NiShape* shape,
 				lockedIndices.insert(i);
 	}
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData)
 			geomData->RecalcNormals(smooth, smoothThresh);
 	}
@@ -3679,8 +3709,7 @@ void NifFile::CalcTangentsForShape(NiShape* shape) {
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData)
 			geomData->CalcTangentSpace();
 	}
@@ -3761,8 +3790,7 @@ void NifFile::MoveVertex(NiShape* shape, const Vector3& pos, const int id) {
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData && geomData->GetNumVertices() > id)
 			geomData->vertices[id] = pos;
 	}
@@ -3777,8 +3805,7 @@ void NifFile::OffsetShape(NiShape* shape, const Vector3& offset, std::unordered_
 	if (!shape)
 		return;
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (geomData) {
 			for (uint16_t i = 0; i < geomData->GetNumVertices(); i++) {
 				if (mask) {
@@ -3822,8 +3849,7 @@ void NifFile::ScaleShape(NiShape* shape, const Vector3& scale, std::unordered_ma
 	Vector3 root;
 	GetRootTranslation(root);
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (!geomData)
 			return;
 
@@ -3879,8 +3905,7 @@ void NifFile::RotateShape(NiShape* shape, const Vector3& angle, std::unordered_m
 	Vector3 root;
 	GetRootTranslation(root);
 
-	if (shape->HasType<NiTriBasedGeom>()) {
-		auto geomData = hdr.GetBlock<NiGeometryData>(shape->DataRef());
+	if (auto geomData = GetGeometryData(shape)) {
 		if (!geomData)
 			return;
 
