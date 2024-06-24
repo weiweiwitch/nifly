@@ -508,7 +508,9 @@ void NiHeader::FillStringRefs() {
 	if (version.File() < V20_1_0_1)
 		return;
 
+	// 从NiObject中获取字符串引用，并根据引用值找到真正的字符串，然后临时存入引用中。
 	for (auto& b : (*blocks)) {
+		// 从block中读取字符串引用
 		std::vector<NiStringRef*> stringRefs;
 		b->GetStringRefs(stringRefs);
 
@@ -521,6 +523,7 @@ void NiHeader::FillStringRefs() {
 				r->SetIndex(stringId);
 			}
 
+			// 将指向的字符串存入ref中
 			std::string str = GetStringById(stringId);
 			r->get() = str;
 		}

@@ -2,6 +2,7 @@
 
 #include "TestNifFile.hpp"
 #include "TestUtil.hpp"
+#include <iostream>
 
 #include <catch2/catch_all.hpp>
 
@@ -32,6 +33,8 @@ TEST_CASE("Load and save static file (SE)", "[NifFile]") {
 	constexpr auto fileName = "TestNifFile_Static_SE";
 	const auto [fileInput, fileOutput, fileExpected] = GetNifFileTuple(fileName);
 
+	std::filesystem::path currentDir = std::filesystem::current_path();
+	std::cout << "Current working directory: " << currentDir << std::endl;
 	NifFile nif;
 	REQUIRE(nif.Load(fileInput) == 0);
 	REQUIRE(nif.Save(fileOutput) == 0);

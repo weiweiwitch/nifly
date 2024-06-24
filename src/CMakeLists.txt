@@ -57,8 +57,9 @@ target_include_directories(nifly SYSTEM PUBLIC
 
 target_compile_features(nifly PUBLIC cxx_std_17)
 
+message(MSVC " is " ${MSVC})
 if(MSVC)
-    target_compile_options(nifly PRIVATE "/Zc:inline")
+    target_compile_options(nifly PRIVATE "/Zc:inline" "/utf-8")
     target_compile_options(nifly PUBLIC "/EHsc" "/bigobj")
 endif()
 

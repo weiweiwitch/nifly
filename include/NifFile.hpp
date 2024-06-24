@@ -89,8 +89,11 @@ public:
 	const NiHeader& GetHeader() const { return hdr; }
 	void CopyFrom(const NifFile& other);
 
+	// 加载nif文件
 	int Load(const std::filesystem::path& fileName, const NifLoadOptions& options = NifLoadOptions());
 	int Load(std::istream& file, const NifLoadOptions& options = NifLoadOptions());
+
+	// 保存
 	int Save(const std::filesystem::path& fileName, const NifSaveOptions& options = NifSaveOptions());
 	int Save(std::ostream& file, const NifSaveOptions& options = NifSaveOptions());
 
@@ -134,9 +137,12 @@ public:
 
 	// Link NiGeometryData pointer to NiGeometry.
 	// Doesn't affect BSTriShape blocks.
+	// 链接Geometry数据指针到具体的NiGeometry块。
+	// 不影响BSTriShape块。
 	void LinkGeomData();
 
 	// Removes triangles with vertex indices that don't exist
+	// 移除无效的三角形。
 	void RemoveInvalidTris() const;
 
 	// Returns vertex limit depending on the file version
@@ -288,6 +294,7 @@ public:
 	void SetTextureSlot(NiShape* shape, std::string& inTexFile, uint32_t texIndex = 0);
 
 	// Normalizes all texture paths in BSShaderTextureSet, BSEffectShaderProperty and NiTexturingProperty blocks
+	// 处理纹理路径。
 	void TrimTexturePaths();
 
 	// Clones all referenced blocks in the specified block.

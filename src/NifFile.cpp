@@ -13,6 +13,8 @@ See the included GPLv3 LICENSE file
 #include <set>
 #include <unordered_set>
 #include <queue>
+#include <iostream>
+#include <string>
 
 using namespace nifly;
 
@@ -117,10 +119,10 @@ void NifFile::LinkGeomData() {
 	for (auto& block : blocks) {
 		if (auto geom = dynamic_cast<NiGeometry*>(block.get())) {
 			// NiGeometry refers to geometry data within the nif file
+			// 根据Geometry的引用值找到目标block。然后将这个block的指针存入当前geometry引用中。
 			auto geomData = hdr.GetBlock(geom->DataRef());
 			if (geomData)
 				geom->SetGeomData(geomData);
-			
 		}
 		// NOTE: BSGeometry is it's own geometry data... need explicit linking here?
 	}
@@ -188,6 +190,7 @@ int NifFile::Load(std::istream& file, const NifLoadOptions& options) {
 	isTerrain = options.isTerrain;
 
 	if (file) {
+		// 读取header
 		NiIStream stream(&file, &hdr);
 		hdr.Get(stream);
 
@@ -196,14 +199,16 @@ int NifFile::Load(std::istream& file, const NifLoadOptions& options) {
 			return 1;
 		}
 
+		// 从header中获取版本信息
 		NiVersion& version = hdr.GetVersion();
 		if (!(version.IsOB() || version.IsFO3() || version.IsSK() || version.IsSSE() || version.IsFO4()
 			  || version.IsFO76() || version.IsSF() || version.IsSpecial())) {
-			// Unsupported file version
+			// Unsupported file version 不支持的文件类型
 			Clear();
 			return 2;
 		}
 
+		// 有多少个block
 		uint32_t nBlocks = hdr.GetNumBlocks();
 		blocks.resize(nBlocks);
 
@@ -211,6 +216,7 @@ int NifFile::Load(std::istream& file, const NifLoadOptions& options) {
 		for (uint32_t i = 0; i < nBlocks; i++) {
 			std::string blockTypeStr = hdr.GetBlockTypeStringById(i);
 
+			// 通过block类型获取不同的解析器
 			auto nifactory = nifactories.GetFactoryByName(blockTypeStr);
 			if (nifactory) {
 				blocks[i] = nifactory->Load(stream);
@@ -222,6 +228,7 @@ int NifFile::Load(std::istream& file, const NifLoadOptions& options) {
 					return 3;
 				}
 
+				// 加载为未知的block
 				hasUnknown = true;
 				blocks[i] = std::make_unique<NiUnknown>(stream, hdr.GetBlockSize(i));
 			}
@@ -234,8 +241,11 @@ int NifFile::Load(std::istream& file, const NifLoadOptions& options) {
 		return 1;
 	}
 
+	// 解析数据
 	PrepareData();
+
 	isValid = true;
+
 	return 0;
 }
 
@@ -910,7 +920,7 @@ bool NifFile::SaveExternalShapeData(NiShape* shape, std::ostream& outfile, uint8
 	auto bsgeo = dynamic_cast<BSGeometry*>(shape);
 	if (bsgeo && (shapeIndex < bsgeo->MeshCount())) {
 		NiOStream meshStream(&outfile, nullptr);
-		NiStreamReversible s(nullptr, &meshStream,NiStreamReversible::Mode::Reading);
+		NiStreamReversible s(nullptr, &meshStream, NiStreamReversible::Mode::Reading);
 		auto mesh = bsgeo->SelectMesh(shapeIndex);
 		mesh->Sync(s);
 		bsgeo->ReleaseMesh();
@@ -1156,21 +1166,27 @@ void NifFile::SetTextureSlot(NiShape* shape, std::string& inTexFile, uint32_t te
 }
 
 void NifFile::TrimTexturePaths() {
+	// 声明一个临时方法
 	auto fTrimPath = [&hdr = hdr, &isTerrain = isTerrain](std::string& tex) -> std::string& {
 		if (tex.empty())
 			return tex;
 
+//		std::cout << "原始：" << tex << std::endl;
 		// Replace multiple slashes or forward slashes with one backslash
+		// 统一替换为一个反斜杠
 		tex = std::regex_replace(tex, std::regex("/+|\\\\+"), "\\");
 
 		// Remove everything before the first occurence of "\textures\"
+		// 移除第一个textures前缀前的路径信息
 		tex = std::regex_replace(tex, std::regex(R"(^(.*?)\\textures\\)", std::regex_constants::icase), "");
 
 		// Remove all backslashes from the front
+		// 移除最开头的反斜杠
 		tex = std::regex_replace(tex, std::regex("^\\\\+"), "");
 
 		if (!hdr.GetVersion().IsOB() && !hdr.GetVersion().IsSpecial() && is_relative_path(tex)) {
 			// If the path doesn't start with "textures\", add it to the front
+			// 添加textures\前缀
 			tex = std::regex_replace(tex,
 									 std::regex("^(?!^textures\\\\)", std::regex_constants::icase),
 									 "textures\\");
@@ -1178,18 +1194,22 @@ void NifFile::TrimTexturePaths() {
 
 		// If the path doesn't start with "Data\", add it to the front
 		if (isTerrain && is_relative_path(tex)) {
+			// 如果是Terrain，添加Data前缀
 			tex = std::regex_replace(tex, std::regex("^(?!^Data\\\\)", std::regex_constants::icase), "Data\\");
 		}
+
+//		std::cout << "最终：" << tex << std::endl;
 		return tex;
 	};
 
 	// Trim texture path in referenced NiSourceTexture block
+	// 针对NiSourceTexture块中的材质引用的处理
 	auto trimSourceTexturePath = [&hdr = hdr,
 								  &fTrimPath = fTrimPath](const NiBlockRef<NiSourceTexture>& sourceRef) {
 		auto sourceTexture = hdr.GetBlock(sourceRef);
 		if (sourceTexture) {
 			std::string tex = sourceTexture->fileName.get();
-			sourceTexture->fileName.get() = fTrimPath(tex);
+			sourceTexture->fileName.get() = fTrimPath(tex); // 处理路径，并写回
 		}
 	};
 
@@ -1200,9 +1220,10 @@ void NifFile::TrimTexturePaths() {
 			if (textureSet) {
 				for (auto& i : textureSet->textures) {
 					std::string tex = i.get();
-					i.get() = fTrimPath(tex);
+					i.get() = fTrimPath(tex); // 处理纹理路径
 				}
 
+				// 进一步处理纹理路径
 				auto effectShader = dynamic_cast<BSEffectShaderProperty*>(shader);
 				if (effectShader) {
 					std::string tex = effectShader->sourceTexture.get();
@@ -1966,12 +1987,18 @@ OptResult NifFile::OptimizeFor(OptOptions& options) {
 }
 
 void NifFile::PrepareData() {
+	// 建立字符串缓存，也就是通过字符串ref的索引值找到字符串，并临时存入ref中。
 	hdr.FillStringRefs();
+
+	// 链接Geometry数据
 	LinkGeomData();
+
+	// 处理纹理路径
 	TrimTexturePaths();
 
 	for (auto& shape : GetShapes()) {
 		// Move triangle and vertex data from partition to shape
+		// 为了方便后续的逻辑处理，将三角形数据和顶点数据，从partition临时移到shape中。
 		if (hdr.GetVersion().IsSSE()) {
 			auto* bsTriShape = dynamic_cast<BSTriShape*>(shape);
 			if (!bsTriShape)
@@ -2008,6 +2035,7 @@ void NifFile::PrepareData() {
 		}
 
 		// Move tangents and bitangents from binary extra data to shape
+		// 为了方便后续的逻辑处理，将切线和副切线数据，从额外的二进制，临时移到shape中。
 		if (hdr.GetVersion().IsOB()) {
 			std::vector<Vector3> tangents;
 			std::vector<Vector3> bitangents;
@@ -2018,6 +2046,7 @@ void NifFile::PrepareData() {
 		}
 	}
 
+	// 移除无效的三角形。
 	RemoveInvalidTris();
 }
 

@@ -127,10 +127,8 @@ public:
 
 	// Check if file has an Oblivion version range
 	bool IsOB() const {
-		return
-			((file == V10_1_0_106 || file == V10_2_0_0) && user >= 3 && user < 11) ||
-			(file == V20_0_0_4 && (user == 10 || user == 11)) ||
-			(file == V20_0_0_5 && user == 11);
+		return ((file == V10_1_0_106 || file == V10_2_0_0) && user >= 3 && user < 11)
+			   || (file == V20_0_0_4 && (user == 10 || user == 11)) || (file == V20_0_0_5 && user == 11);
 	}
 
 	// Check if file has a Fallout 3 version range
@@ -343,26 +341,25 @@ public:
 		if (mode == Mode::Reading)
 			fl = halfData;
 	}
-	
+
 	void SyncUDEC3(Vector3& vec) {
 		uint32_t data;
 
 		if (mode == Mode::Writing) {
-			data =  (((uint32_t)((vec.z+1.0)*511.5)) & 1023) << 20;
-			data &= (((uint32_t)((vec.y+1.0)*511.5)) & 1023) << 10;
-			data &= (((uint32_t)((vec.x+1.0)*511.5)) & 1023);			
+			data = (((uint32_t) ((vec.z + 1.0) * 511.5)) & 1023) << 20;
+			data &= (((uint32_t) ((vec.y + 1.0) * 511.5)) & 1023) << 10;
+			data &= (((uint32_t) ((vec.x + 1.0) * 511.5)) & 1023);
 		}
 
 		Sync(data);
 
 		if (mode == Mode::Reading) {
-			vec.x = (float)(((data & 1023) / 511.5) - 1.0);
-			vec.y = (float)((((data >> 10) & 1023) / 511.5) - 1.0);
-			vec.z = (float)((((data >> 20) & 1023) / 511.5) - 1.0);
-		}		
+			vec.x = (float) (((data & 1023) / 511.5) - 1.0);
+			vec.y = (float) ((((data >> 10) & 1023) / 511.5) - 1.0);
+			vec.z = (float) ((((data >> 20) & 1023) / 511.5) - 1.0);
+		}
 	}
 
-	
 
 	NiOStream* asWrite() { return ostream; }
 	NiIStream* asRead() { return istream; }
@@ -1161,6 +1158,8 @@ public:
 	void UpdateMaxStringLength();
 
 	// Fills all string references with their corresponding header string (index -> string)
+	// 链接每个block中的字符串引用到具体的字符串。
+	// 也就是将字符串临时保存在字符串引用中（这个数据不会被序列化）。
 	void FillStringRefs();
 
 	// Creates header strings for all string references or updates existing ones (string -> index)
