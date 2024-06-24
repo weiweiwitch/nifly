@@ -1,11 +1,12 @@
 #include "TestUtil.hpp"
 #include <fstream>
-#include <catch2/catch.hpp>
+#include <catch.hpp>
 
 bool CompareBinaryFiles(const std::filesystem::path& fileName1, const std::filesystem::path& fileName2) {
 	// Open file streams at the end of each file
 	std::ifstream fileStream1(fileName1, std::ifstream::ate | std::ifstream::binary);
 	std::ifstream fileStream2(fileName2, std::ifstream::ate | std::ifstream::binary);
+
 
 	// Compare file size to start with
 	std::streampos fileSize1 = fileStream1.tellg();

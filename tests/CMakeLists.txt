@@ -7,7 +7,8 @@ set(TARGETS
 
 foreach(name ${TARGETS})
     add_executable(${name} ${NIFLY_TESTS_DIR}/TestUtil.cpp ${NIFLY_TESTS_DIR}/${name}.cpp)
-    target_link_libraries(${name} PRIVATE nifly Catch2::Catch2)
+    target_link_libraries(${name} PRIVATE nifly Catch2::Catch2WithMain)
+#    target_link_libraries(${name} PRIVATE nifly Catch2::Catch2)
     set_target_properties(${name} PROPERTIES CXX_EXTENSIONS OFF)
 
     # Add warnings. -Werror disabled for now

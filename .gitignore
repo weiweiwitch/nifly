@@ -6,6 +6,8 @@
 cmake-build-debug
 cmake-build-release
 .idea
+vcpkg_installed
+cmake-build-win
 
 # Build folder
 build/
