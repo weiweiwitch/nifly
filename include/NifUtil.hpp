@@ -13,6 +13,7 @@ See the included GPLv3 LICENSE file
 #include <string_view>
 
 namespace nifly {
+
 // Applies a vertex index renumbering map to p1, p2, and p3 of a vector of triangles.
 // If a triangle has an index out of range of the map
 // or if an index maps to a negative number, the triangle is removed.

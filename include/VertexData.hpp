@@ -9,6 +9,7 @@ See the included GPLv3 LICENSE file
 #include "BasicTypes.hpp"
 
 namespace nifly {
+
 enum VertexAttribute : uint8_t {
 	VA_POSITION = 0x0,
 	VA_TEXCOORD0 = 0x1,

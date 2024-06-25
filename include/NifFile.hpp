@@ -85,8 +85,10 @@ public:
 		return *this;
 	}
 
+	// 获取header信息
 	NiHeader& GetHeader() { return hdr; }
 	const NiHeader& GetHeader() const { return hdr; }
+
 	void CopyFrom(const NifFile& other);
 
 	// 加载nif文件

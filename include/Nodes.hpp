@@ -10,6 +10,7 @@ See the included GPLv3 LICENSE file
 #include "Objects.hpp"
 
 namespace nifly {
+
 class NiNode : public NiCloneableStreamable<NiNode, NiAVObject> {
 public:
 	NiBlockRefArray<NiAVObject> childRefs;
@@ -180,9 +181,9 @@ public:
 };
 
 struct BSResourceID {
-    uint32_t fileHash = 0;
-    char extension[4];
-    uint32_t dirHash = 0;
+	uint32_t fileHash = 0;
+	char extension[4];
+	uint32_t dirHash = 0;
 };
 
 struct UnkMaterialStruct {
@@ -195,10 +196,10 @@ struct UnkMaterialStruct {
 };
 
 struct UnkWeakRefStruct {
-    Matrix4 transform;
-    BSResourceID resourceID;
-    uint32_t unkInt1 = 0;
-    NiString material;
+	Matrix4 transform;
+	BSResourceID resourceID;
+	uint32_t unkInt1 = 0;
+	NiString material;
 
 	void Sync(NiStreamReversible& stream);
 };
