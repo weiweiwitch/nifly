@@ -9,12 +9,12 @@ See the included GPLv3 LICENSE file
 #include "bhk.hpp"
 
 #include <fstream>
+#include <iostream>
 #include <regex>
 #include <set>
+#include <string>
 #include <unordered_set>
 #include <queue>
-#include <iostream>
-#include <string>
 
 using namespace nifly;
 
@@ -22,7 +22,9 @@ uint32_t NifFile::GetBlockID(NiObject* block) const {
 	auto it = find_if(blocks, [&block](const auto& ptr) { return ptr.get() == block; });
 
 	if (it != blocks.end())
-		return static_cast<uint32_t>(std::distance(blocks.begin(), it));
+		return static_cast<uint32_t>(std::distance(
+			blocks.begin(),
+			it)); // blockId是通过计算首个元素和目标元素的距离来得到的。比如第一个元素和第二个元素，距离就是1，所以blockId是1。这个符合数组的索引含义。
 
 	return NIF_NPOS;
 }
@@ -46,9 +48,11 @@ NiNode* NifFile::GetParentNode(NiObject* childBlock) const {
 }
 
 void NifFile::SetParentNode(NiObject* childBlock, NiNode* newParent) {
+	// 要附加的子block必须有效
 	if (!childBlock)
 		return;
 
+	// 要附加的父block必须有效。如果没指定，就用Root Node
 	if (!newParent) {
 		newParent = GetRootNode();
 
@@ -71,9 +75,12 @@ void NifFile::SetParentNode(NiObject* childBlock, NiNode* newParent) {
 				continue;
 
 			// We have now found the node's old parent
+			// 到这里，我们找到了Child Block的原父block。
+
+			// 下面，开始交换
 			if (newParent != node) {
-				children.RemoveBlockRef(ci);
-				newParent->childRefs.AddBlockRef(childId);
+				children.RemoveBlockRef(ci);			   // 从老的父block的子引用表中移除。
+				newParent->childRefs.AddBlockRef(childId); // 添加到新的父block的子引用表。
 			}
 
 			return;
@@ -81,6 +88,7 @@ void NifFile::SetParentNode(NiObject* childBlock, NiNode* newParent) {
 	}
 
 	// If we get here, the node's old parent was not found.
+	// 到这里，说明我们找不到Child Block的老父元素。那么直接添加到新父block的子引用表。
 	newParent->childRefs.AddBlockRef(childId);
 }
 
@@ -132,7 +140,9 @@ void NifFile::RemoveInvalidTris() const {
 	for (auto& shape : GetShapes()) {
 		std::vector<Triangle> tris;
 		if (shape->GetTriangles(tris)) {
-			uint16_t numVerts = shape->GetNumVertices();
+			uint16_t numVerts = shape->GetNumVertices(); // 得到shape的顶点数
+
+			// erase和remove_if是成对出现的。这里借助这对组合，删除顶点索引无效的三角形。
 			tris.erase(std::remove_if(tris.begin(),
 									  tris.end(),
 									  [&](auto& t) {
@@ -1171,7 +1181,7 @@ void NifFile::TrimTexturePaths() {
 		if (tex.empty())
 			return tex;
 
-//		std::cout << "原始：" << tex << std::endl;
+		//		std::cout << "原始：" << tex << std::endl;
 		// Replace multiple slashes or forward slashes with one backslash
 		// 统一替换为一个反斜杠
 		tex = std::regex_replace(tex, std::regex("/+|\\\\+"), "\\");
@@ -1198,7 +1208,7 @@ void NifFile::TrimTexturePaths() {
 			tex = std::regex_replace(tex, std::regex("^(?!^Data\\\\)", std::regex_constants::icase), "Data\\");
 		}
 
-//		std::cout << "最终：" << tex << std::endl;
+		//		std::cout << "最终：" << tex << std::endl;
 		return tex;
 	};
 
@@ -2707,6 +2717,7 @@ bool NifFile::GetShapeBoneTransform(NiShape* shape,
 									MatTransform& outTransform) const {
 	if (boneName.empty())
 		return GetShapeTransformGlobalToSkin(shape, outTransform);
+
 	return GetShapeTransformSkinToBone(shape, boneName, outTransform);
 }
 

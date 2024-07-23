@@ -418,12 +418,14 @@ public:
 
 	void Get(NiIStream& stream) override {
 		Base::Get(stream);
+
 		NiStreamReversible s(&stream, nullptr, NiStreamReversible::Mode::Reading);
 		asDer().Sync(s);
 	}
 
 	void Put(NiOStream& stream) override {
 		Base::Put(stream);
+
 		NiStreamReversible s(nullptr, &stream, NiStreamReversible::Mode::Writing);
 		asDer().Sync(s);
 	}
@@ -946,6 +948,7 @@ public:
 		return std::unique_ptr<NiObject>(static_cast<NiObject*>(this->Clone_impl()));
 	}
 
+	// 判断NiObject是否是目标类型
 	template<typename T>
 	bool HasType() const {
 		return dynamic_cast<const T*>(this) != nullptr;
@@ -970,11 +973,15 @@ class NiHeader : public NiHeaderBase, public NiCloneable<NiHeader, NiObject> {
 
 private:
 	NiString creator;
+
 	uint32_t unkInt1 = 0;
+
+	// 导出信息？
 	NiString exportInfo1;
 	NiString exportInfo2;
 	NiString exportInfo3;
 
+	// copyright信息
 	std::string copyright1;
 	std::string copyright2;
 	std::string copyright3;
@@ -985,15 +992,15 @@ private:
 	// Foreign reference to the blocks list in NifFile.
 	std::vector<std::unique_ptr<NiObject>>* blocks = nullptr;
 
-	uint32_t numBlocks = 0;
-	uint16_t numBlockTypes = 0;
-	std::vector<NiString> blockTypes;
-	std::vector<uint16_t> blockTypeIndices;
+	uint32_t numBlocks = 0; // block的数量
+	uint16_t numBlockTypes = 0; // 有多少种类型
+	std::vector<NiString> blockTypes; // block类型字符串数组
+	std::vector<uint16_t> blockTypeIndices; // 特定ID的block对应的block type字符串的索引
 	std::vector<uint32_t> blockSizes;
 
 	uint32_t numStrings = 0;
 	uint32_t maxStringLen = 0;
-	std::vector<NiString> strings;
+	std::vector<NiString> strings; // 字符串
 
 	uint32_t numGroups = 0;
 	std::vector<uint32_t> groupSizes;
@@ -1133,7 +1140,7 @@ public:
 	}
 
 	uint16_t AddOrFindBlockTypeId(const std::string& blockTypeName);
-	std::string GetBlockTypeStringById(const uint32_t blockId) const;
+	std::string GetBlockTypeStringById(const uint32_t blockId) const; // 根据block的id获得block的type字符串
 	uint16_t GetBlockTypeIndex(const uint32_t blockId) const;
 
 	uint32_t GetBlockSize(const uint32_t blockId) const;

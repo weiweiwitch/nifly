@@ -64,7 +64,9 @@ struct NifSaveOptions {
 class NifFile {
 private:
 	NiHeader hdr;
+
 	std::vector<std::unique_ptr<NiObject>> blocks;
+
 	bool isValid = false;
 	bool hasUnknown = false;
 	bool isTerrain = false;
@@ -241,15 +243,20 @@ public:
 	}
 
 	// Returns index of a block in the blocks array or NIF_NPOS
+	// 根据block返回block在block数组中的索引值。
 	uint32_t GetBlockID(NiObject* block) const;
 
 	// Returns first direct parent NiNode of a block (or nullptr)
+	// 找到一个block的第一个直接父NiNode。
+	// 必须是NiNode。
 	NiNode* GetParentNode(NiObject* block) const;
 
 	// Moves block from its current parent NiNode to a new parent
+	// 将一个block从它的旧父block中移除，并添加到新的block下。
 	void SetParentNode(NiObject* block, NiNode* parent);
 
 	// Returns all NiNode blocks
+	// 获取所有的NiNode。
 	std::vector<NiNode*> GetNodes() const;
 
 	// Returns NiShader pointer of the shape (or nullptr).
